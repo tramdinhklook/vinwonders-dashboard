@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VinWonders × Klook Supply Coverage</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: system-ui,-apple-system,sans-serif; background:#f1f5f9; font-size:13px; }
+  .city-bar { background:#1e293b; color:#e2e8f0; }
+  .aid-row { cursor:pointer; user-select:none; }
+  .aid-row:hover { background:#f8fafc; }
+  .aid-border-published   { border-left:3px solid #22c55e; }
+  .aid-border-unpublished { border-left:3px solid #f59e0b; }
+  .aid-border-missing     { border-left:3px solid #ef4444; }
+  .pid-table tr:hover td { background:#fafafa; }
+  .bp { background:#dcfce7; color:#166534; }
+  .bu { background:#fef9c3; color:#854d0e; }
+  .bm { background:#fee2e2; color:#991b1b; }
+  .be { background:#f0fdf4; color:#15803d; }
+  .klk { color:#ff5733; font-weight:700; text-decoration:none; }
+  .klk:hover { text-decoration:underline; }
+  .sku-chip { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; border-radius:4px; padding:1px 6px; font-size:11px; display:inline-block; margin:1px; }
+  .my-sel { font-size:11px; border:1px solid #e2e8f0; border-radius:5px; padding:2px 4px; background:#fff; cursor:pointer; outline:none; max-width:100px; }
+  .my-sel:focus { border-color:#94a3b8; }
+  .my-sel[data-v="onboarding"] { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; font-weight:600; }
+  .my-sel[data-v="solved"]     { background:#f0fdf4; color:#15803d; border-color:#bbf7d0; font-weight:600; }
+  .my-sel[data-v="skip"]       { background:#f8fafc; color:#94a3b8; border-color:#e2e8f0; font-style:italic; }
+</style>
+</head>
+<body class="p-3 md:p-5">
+
+<!-- Header -->
+<div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+  <div>
+    <h1 class="text-base font-bold text-gray-900">🎢 VinWonders × Klook — Supply Coverage</h1>
+    <p class="text-xs text-gray-400">City → AID (Activity) → PID (Package) → SKU · <span id="ts"></span></p>
+  </div>
+  <div class="flex gap-1.5">
+    <button onclick="expandAll()" class="px-2.5 py-1 text-xs bg-white border border-gray-200 rounded-lg hover:bg-gray-50">Expand all</button>
+    <button onclick="collapseAll()" class="px-2.5 py-1 text-xs bg-white border border-gray-200 rounded-lg hover:bg-gray-50">Collapse all</button>
+    <button onclick="exportCSV()" class="px-2.5 py-1 text-xs bg-white border border-gray-200 rounded-lg hover:bg-gray-50">📥 CSV</button>
+  </div>
+</div>
+
+<!-- KPIs -->
+<div class="grid grid-cols-5 gap-2 mb-4" id="kpis"></div>
+
+<!-- Filters -->
+<div class="flex flex-wrap gap-1.5 items-center mb-4 bg-white rounded-lg border border-gray-200 px-3 py-2">
+  <span class="text-xs text-gray-400 font-medium mr-1">Filter:</span>
+  <div id="filters" class="flex flex-wrap gap-1.5"></div>
+  <div class="ml-auto">
+    <input id="q" type="text" placeholder="Search…" class="text-xs border border-gray-200 rounded-md px-2.5 py-1 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400" oninput="render()">
+  </div>
+</div>
+
+<!-- Tree -->
+<div id="tree" class="space-y-3"></div>
+
+<div class="text-xs text-gray-300 text-center mt-5 pb-2">2026 VinWonders Mapping × Klook All AIDs · Tram Dinh, BD Klook Vietnam</div>
+
+<script>
+const KLOOK = 'https://www.klook.com/activity/';
+
+// ── DATA ─────────────────────────────────────────────────────────────────────
+// AID status: published | unpublished | missing
+// PID status: exists | missing | unpublished
+
+const CITIES = [
+// ─── PHU QUOC ────────────────────────────────────────────────────────────────
+{ city:"Phu Quoc", aids:[
+  { aid:11989, name:"VinWonders Phu Quoc Ticket", status:"published", merchant:"25689",
+    pids:[
+      { rc:"2586",    name:"Standard Entrance (VVC) – 180 days",           type:"Entrance",      disc:"6–15%", status:"exists",   skus:["Adult","Child 100-140cm","Child <100cm (free)","Senior 60+ (free)"] },
+      { rc:"2094",    name:"Combo VW + Buggy + Gate Fastpass",             type:"Fastpass Combo",disc:"10%",   status:"missing",  skus:["Adult","Child","Senior"] },
+      { rc:"3318",    name:"Wonders Fast F&B Combo",                       type:"F&B Combo",     disc:"6%",    status:"missing",  skus:["Adult"] },
+      { rc:"2555",    name:"Dining Under the Deep Sea",                    type:"F&B Combo",     disc:"6%",    status:"missing",  skus:["Adult"] },
+      { rc:"3667",    name:"Chicken Fest F&B Combo",                       type:"F&B Combo",     disc:"6%",    status:"missing",  skus:["Adult"] },
+      { rc:"4250",    name:"Haven Sunset Tour – VIP",                      type:"Sunset Tour",   disc:"15%",   status:"missing",  skus:["Adult VIP","Child VIP","Senior"] },
+      { rc:"UNL-PQ",  name:"Unlimited Phu Quoc Pass",                      type:"Unlimited Pass",disc:"-",     status:"missing",  skus:["Adult","Child"] },
+    ]},
+  { aid:11990, name:"Vinpearl Safari Phu Quoc Ticket", status:"published", merchant:"25689",
+    pids:[
+      { rc:"VPS",   name:"Safari Entrance Ticket",          type:"Safari",           disc:"6%",  status:"exists",  skus:["Adult","Child 100-140cm","Child <100cm (free)","Senior (free)"] },
+      { rc:"NIGHT", name:"Night Safari – 20h30",            type:"Night Experience", disc:"-",   status:"missing", skus:["Adult","Child"] },
+      { rc:"CAGE",  name:"Locked-in-the-Cage Safari Tour",  type:"Premium Exp.",     disc:"-",   status:"missing", skus:["Adult"] },
+    ]},
+  { aid:56159, name:"Grand World Phu Quoc Attractions Ticket", status:"published", merchant:"25689",
+    pids:[
+      { rc:"3907",  name:"Grand World Entrance – 180 days",            type:"Entrance", disc:"15%", status:"exists",  skus:["Adult","Child 100-140cm","Child <100cm (free)","Senior (free)"] },
+      { rc:"1780",  name:"GW Daily Tour: Phu Quoc To The Fullest",     type:"Daily Tour",disc:"-",  status:"missing", skus:["Adult","Child"] },
+    ]},
+  { aid:143343, name:"Quintessence of Vietnam Show – Phu Quoc", status:"published", merchant:"25689",
+    pids:[
+      { rc:"SHOW", name:"Show Ticket – Standard Seat", type:"Show", disc:"-", status:"exists", skus:["Adult","Child"] },
+    ]},
+]},
+
+// ─── NHA TRANG ───────────────────────────────────────────────────────────────
+{ city:"Nha Trang", aids:[
+  { aid:11988, name:"VinWonders Nha Trang Ticket", status:"published", merchant:"25691",
+    pids:[
+      { rc:"3892",     name:"Standard Entrance (VVC) – 180 days",          type:"Entrance",      disc:"8–15%", status:"exists",      skus:["Adult","Child 100-140cm","Child <100cm (free)","Senior (free)"] },
+      { rc:"3896",     name:"0.5 Daily Tour – Wonder Show Deal 1",          type:"Daily Tour",    disc:"15%",   status:"missing",     skus:["Adult","Child"] },
+      { rc:"3964",     name:"HappyHour – Wonder Show Deal 2",               type:"Show Deal",     disc:"8%",    status:"missing",     skus:["Adult","Child"] },
+      { rc:"COMBO-AT", name:"Combo VVC + Food & Beverage",                  type:"F&B Combo",     disc:"-",     status:"missing",     skus:["Adult"] },
+      { rc:"VIP-FP",   name:"Wonder Fastpass + VIP Tour",                   type:"Fastpass+VIP",  disc:"-",     status:"missing",     skus:["Adult","Child"] },
+      { rc:"AQ-NT",    name:"Aquafield Nha Trang – Day Pass",               type:"Sauna & Spa",   disc:"-",     status:"missing",     skus:["Adult","Child"], note:"Aquafield live in Hanoi (AID 172319) but no NT AID yet" },
+      { rc:"UNL-NT",   name:"Unlimited Nha Trang Pass",                     type:"Unlimited Pass",disc:"-",     status:"unpublished", skus:["Adult","Child"], note:"AID 149832 exists but Unpublished – review & publish" },
+      { rc:"CB-NT-HT", name:"Combo VinWonders NT + Hon Tam",                type:"Bundle",        disc:"-",     status:"missing",     skus:["Adult","Child"] },
+    ]},
+  { aid:110680, name:"Vinpearl Harbour Nha Trang – Cable Car", status:"published", merchant:"25691",
+    pids:[
+      { rc:"2642",  name:"Cable Car / Harbour Entrance – 30–180 days",      type:"Cable Car",  disc:"15%", status:"exists",      skus:["Adult","Child","Senior (free)"] },
+      { rc:"JJB",   name:"Jjimjilbang (Korean Sauna) at Aquafield",         type:"Sauna Exp.", disc:"-",   status:"unpublished", skus:["Adult","Child"], note:"AID 120133 exists but Unpublished" },
+      { rc:"KART",  name:"High-Speed Go Kart Racing",                       type:"Motorsport", disc:"-",   status:"unpublished", skus:["Adult"], note:"AID 120323 exists but Unpublished" },
+    ]},
+  { aid:171907, name:"Hon Tam Island – Mud Bath Experience", status:"published", merchant:"19444",
+    pids:[
+      { rc:"3541", name:"Play Zone AB + Speedboat – Low Season (until 29/04)", type:"Mud Bath", disc:"25%", status:"exists", skus:["Adult","Child","Senior (free)"] },
+      { rc:"4065", name:"With Transport – From 30/04/2026",                    type:"Mud Bath", disc:"15%", status:"exists", skus:["Adult","Child","Senior (free)"] },
+    ]},
+]},
+
+// ─── HOI AN ──────────────────────────────────────────────────────────────────
+{ city:"Hoi An", aids:[
+  { aid:12037, name:"VinWonders Nam Hoi An Ticket", status:"published", merchant:"25692",
+    pids:[
+      { rc:"3678",     name:"Standard Entrance Ticket",                         type:"Entrance",      disc:"10%", status:"exists",  skus:["Adult","Child 100-140cm","High School","Child <100cm (free)","Senior (free)"] },
+      { rc:"3678-BF",  name:"Combo Entrance + Buffet 300K",                     type:"F&B Combo",     disc:"10%", status:"missing", skus:["Adult","Child"] },
+      { rc:"SUN-PREM", name:"Sunset Premium: Afternoon + Buggy + VIP Safari + FB", type:"Premium Bundle",disc:"-",  status:"missing", skus:["Adult"] },
+      { rc:"VIP-SAF",  name:"Combo Entrance + VIP Safari + Buffet + Buggy",     type:"Premium Bundle",disc:"-",   status:"missing", skus:["Adult","Child"] },
+      { rc:"JZK-AM",   name:"Junior Zoo Keeper – Morning Session",              type:"Kids Exp.",     disc:"-",   status:"missing", skus:["Child 6-14yrs"], note:"Unique kids experience – behind-the-scenes keeper program" },
+      { rc:"JZK-PM",   name:"Junior Zoo Keeper – Afternoon Session",            type:"Kids Exp.",     disc:"-",   status:"missing", skus:["Child 6-14yrs"] },
+    ]},
+]},
+
+// ─── HO CHI MINH CITY ────────────────────────────────────────────────────────
+{ city:"Ho Chi Minh City", aids:[
+  { aid:140311, name:"VinWonders Grand Park Ticket", status:"published", merchant:"44812",
+    pids:[
+      { rc:"3899",    name:"Standard Entrance – 180 days (OTA)",           type:"Entrance",      disc:"15%", status:"exists",  skus:["Adult","Child 100-140cm","Child <100cm (free)","Senior (free)"] },
+      { rc:"WTG-WD",  name:"Wonder To Go – Weekday Entrance",             type:"Weekday Ticket",disc:"15%", status:"missing", skus:["Adult","Child"] },
+      { rc:"WTG-WE",  name:"Wonder To Go – Weekend/Holiday Entrance",     type:"Weekend Ticket",disc:"15%", status:"missing", skus:["Adult","Child"] },
+      { rc:"WIC",     name:"Wonder Ice Cream Bundle (Weekday/Weekend)",    type:"F&B Bundle",    disc:"15%", status:"missing", skus:["Adult","Child"] },
+      { rc:"MEM-30",  name:"Membership – Unlimited Entry 30 days",        type:"Membership",    disc:"15%", status:"missing", skus:["Adult","Child"] },
+      { rc:"GRP",     name:"Family / Group Combo",                        type:"Group Ticket",  disc:"15%", status:"missing", skus:["Family 2A+1C","Group"] },
+    ]},
+]},
+
+// ─── HAI PHONG ───────────────────────────────────────────────────────────────
+{ city:"Hai Phong", aids:[
+  { aid:163979, name:"VinWonders Vu Yen Ticket", status:"published", merchant:"54938",
+    pids:[
+      { rc:"4058-WD", name:"Safari + Game + Water Park – Weekday",       type:"Entrance",        disc:"10%", status:"exists", skus:["Adult","Child 100-140cm","Child <100cm (free)","Senior (free)"] },
+      { rc:"4058-WE", name:"Safari + Game + Water Park – Weekend+Holiday",type:"Weekend Ticket", disc:"10%", status:"exists", skus:["Adult","Child","Senior (free)"] },
+    ]},
+  { aid:166162, name:"Vinpearl Horse Academy – Vu Yen", status:"published", merchant:"55429",
+    pids:[
+      { rc:"HORSE", name:"Horse Riding Experience", type:"Activity", disc:"-", status:"exists", skus:["Adult","Child 5+"] },
+    ]},
+]},
+
+// ─── NGHE AN / CUA HOI ───────────────────────────────────────────────────────
+{ city:"Nghe An (Cua Hoi)", aids:[
+  { aid:118847, name:"VinWonders Cua Hoi Ticket", status:"published", merchant:"39120",
+    pids:[
+      { rc:"CH-VVC", name:"Standard Entrance Ticket",              type:"Entrance",   disc:"-",  status:"exists",  skus:["Adult","Child 100-140cm","Child <100cm (free)","Senior (free)"] },
+      { rc:"CH-FAM", name:"Family Pack (2 Adults + 1 Child)",      type:"Family Pack",disc:"-",  status:"missing", skus:["Family pack"] },
+      { rc:"CH-AT1", name:"Entrance + Ẩm Thực (Local Dining) Combo",type:"F&B Combo",disc:"-",  status:"missing", skus:["Adult","Child"] },
+      { rc:"CH-AT2", name:"Entrance + Seafood Buffet Package",      type:"F&B Combo", disc:"-",  status:"missing", skus:["Adult","Child"] },
+    ]},
+]},
+
+// ─── HA TINH / CUA SOT ───────────────────────────────────────────────────────
+{ city:"Ha Tinh (Cua Sot)", aids:[
+  { aid:null, name:"VinWonders Cua Sot — New Location", status:"missing", merchant:"New – API TBD",
+    pids:[
+      { rc:"4235",    name:"Standard Entrance – Weekday",           type:"Entrance",       disc:"15%", status:"missing", skus:["Adult","Child 100-140cm","Child <100cm (free)","Senior (free)"], note:"Brand new location 2026. First to onboard." },
+      { rc:"4235-WE", name:"Standard Entrance – Weekend + Holiday", type:"Weekend Ticket", disc:"15%", status:"missing", skus:["Adult","Child","Senior (free)"] },
+    ]},
+]},
+
+// ─── HANOI ───────────────────────────────────────────────────────────────────
+{ city:"Hanoi", aids:[
+  { aid:96882, name:"VinWonders Wave Park & Water Park – Ha Noi", status:"published", merchant:"29841",
+    pids:[
+      { rc:"WAVE",  name:"Wave Park + Water Park Entrance",                 type:"Water Park",      disc:"-",  status:"exists",  skus:["Adult","Child 100-140cm","Child <100cm (free)","Senior (free)"] },
+      { rc:"3627",  name:"1-Way Gondola + Jjimjilbang Combo",              type:"Gondola+Sauna",   disc:"-",  status:"missing", skus:["Adult","Child"] },
+    ]},
+  { aid:103624, name:"Mega Grand World Ha Noi Attractions Ticket", status:"published", merchant:"29841",
+    pids:[
+      { rc:"MGW", name:"Mega Grand World Attractions Entrance", type:"Entrance", disc:"-", status:"exists", skus:["Adult","Child","Senior"] },
+    ]},
+  { aid:172319, name:"Aquafield Sauna & Spa – Ocean City Hanoi", status:"published", merchant:"57649",
+    pids:[
+      { rc:"3900", name:"Aquafield OCP – Day Pass", type:"Sauna & Spa", disc:"15%", status:"exists", skus:["Adult","Child","Senior (free)"] },
+    ]},
+  { aid:96286, name:"VinKE & Vinpearl Aquarium – Times City", status:"published", merchant:"29840",
+    pids:[
+      { rc:"3934",    name:"Aquarium Entrance Ticket",            type:"Aquarium",    disc:"15%", status:"exists", skus:["Adult","Child 100-140cm","Child <100cm (free)"] },
+      { rc:"VINKE",   name:"VinKE Children Experience Ticket",    type:"Kids Activity",disc:"15%",status:"exists", skus:["Child 3-12yrs"] },
+      { rc:"COMB-VK", name:"Combined VinKE + Aquarium Ticket",    type:"Combo",       disc:"15%", status:"exists", skus:["Adult","Child"] },
+    ]},
+]},
+
+]; // end CITIES
+
+// ── MY ACTION (localStorage) ─────────────────────────────────────────────────
+
+const LS_KEY = 'vw_my_action';
+function loadMyActions() { try { return JSON.parse(localStorage.getItem(LS_KEY)||'{}'); } catch(e){ return {}; } }
+function getMyAction(pidKey) { return loadMyActions()[pidKey]||''; }
+function setMyAction(pidKey, sel) {
+  const data = loadMyActions();
+  data[pidKey] = sel.value;
+  localStorage.setItem(LS_KEY, JSON.stringify(data));
+  sel.setAttribute('data-v', sel.value);
+  // restyle without full re-render
+  sel.className = 'my-sel';
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+
+function b(status, text) {
+  const map = {
+    published:  ['bp', text||'✅ Published'],
+    unpublished:['bu', text||'🟡 Unpublished'],
+    missing:    ['bm', text||'🔴 Missing'],
+    exists:     ['be', text||'✅ On Klook'],
+  };
+  const [cls, lbl] = map[status] || ['bg-gray-100 text-gray-600', status];
+  return `<span class="px-1.5 py-0.5 rounded text-xs font-semibold ${cls}">${lbl}</span>`;
+}
+
+function pidIcon(s) {
+  return s==='exists' ? '✅' : s==='unpublished' ? '🟡' : '🔴';
+}
+
+// ── STATS ────────────────────────────────────────────────────────────────────
+
+function calcStats() {
+  let totA=0, pubA=0, unpA=0, misA=0, totP=0, okP=0, unpP=0, misP=0;
+  CITIES.forEach(c=>c.aids.forEach(a=>{
+    totA++;
+    if(a.status==='published') pubA++;
+    else if(a.status==='unpublished') unpA++;
+    else misA++;
+    a.pids.forEach(p=>{ totP++; if(p.status==='exists') okP++; else if(p.status==='unpublished') unpP++; else misP++; });
+  }));
+  return {totA,pubA,unpA,misA,totP,okP,unpP,misP};
+}
+
+function renderKPIs() {
+  const s = calcStats();
+  const cards = [
+    {label:'AIDs Total',     v:s.totA, sub:'Activities',     icon:'📋', cl:'bg-slate-50  border-slate-100'},
+    {label:'Published',      v:s.pubA, sub:'Live on Klook',  icon:'✅', cl:'bg-green-50  border-green-100'},
+    {label:'Unpublished',    v:s.unpA, sub:'Offline',        icon:'🟡', cl:'bg-yellow-50 border-yellow-100'},
+    {label:'Missing AIDs',   v:s.misA, sub:'No AID',         icon:'🔴', cl:'bg-red-50    border-red-100'},
+    {label:'Missing PIDs',   v:s.misP, sub:'Pkgs not live',  icon:'📦', cl:'bg-orange-50 border-orange-100'},
+  ];
+  document.getElementById('kpis').innerHTML = cards.map(c=>
+    `<div class="rounded-lg border ${c.cl} px-3 py-2.5">
+      <div class="flex items-center justify-between">
+        <span class="text-xl leading-none">${c.icon}</span>
+        <span class="text-2xl font-bold text-gray-900">${c.v}</span>
+      </div>
+      <div class="text-xs font-semibold text-gray-700 mt-1.5">${c.label}</div>
+      <div class="text-xs text-gray-400">${c.sub}</div>
+    </div>`
+  ).join('');
+}
+
+// ── FILTERS ──────────────────────────────────────────────────────────────────
+
+let fStatus='all', fCity='all';
+
+function renderFilters() {
+  const sOpts=[{k:'all',l:'All'},{k:'missing',l:'🔴 Missing'},{k:'unpublished',l:'🟡 Unpub.'},{k:'published',l:'✅ Published'}];
+  const cOpts=[{k:'all',l:'All Cities'},...CITIES.map(c=>({k:c.city,l:c.city}))];
+  document.getElementById('filters').innerHTML = [
+    ...sOpts.map(o=>btn(o.k,o.l, fStatus===o.k)),
+    `<span class="text-gray-300 text-xs">|</span>`,
+    ...cOpts.map(o=>btn(o.k,o.l, fCity===o.k)),
+  ].join('');
+}
+
+function btn(k,l,active) {
+  return `<button onclick="setF('${k}')" class="px-2 py-0.5 text-xs rounded-full border font-medium transition-all ${active?'bg-gray-900 text-white border-gray-900':'bg-white border-gray-200 hover:bg-gray-50 text-gray-600'}">${l}</button>`;
+}
+
+function setF(k) {
+  const sKeys=['all','missing','unpublished','published'];
+  const cKeys=['all',...CITIES.map(c=>c.city)];
+  if(sKeys.includes(k)) fStatus=k;
+  else if(cKeys.includes(k)) fCity=k;
+  renderFilters(); render();
+}
+
+// ── TREE ─────────────────────────────────────────────────────────────────────
+
+const openAIDs = new Set();
+const openPIDs = new Set();
+
+function toggleAID(k) { openAIDs.has(k)?openAIDs.delete(k):openAIDs.add(k); render(); }
+function togglePID(k) { openPIDs.has(k)?openPIDs.delete(k):openPIDs.add(k); render(); }
+
+function expandAll() {
+  CITIES.forEach(c=>c.aids.forEach((a,ai)=>{
+    const k=c.city+ai; openAIDs.add(k);
+    a.pids.forEach((_,pi)=>openPIDs.add(k+pi));
+  })); render();
+}
+function collapseAll() { openAIDs.clear(); openPIDs.clear(); render(); }
+
+function render() {
+  const q = document.getElementById('q').value.toLowerCase();
+  let html='';
+
+  for(const city of CITIES) {
+    if(fCity!=='all' && fCity!==city.city) continue;
+
+    const visAIDs = city.aids.filter(a=>{
+      const ms = fStatus==='all' || a.status===fStatus ||
+        (fStatus==='missing' && a.pids.some(p=>p.status==='missing')) ||
+        (fStatus==='unpublished' && a.pids.some(p=>p.status==='unpublished'));
+      const mq = !q || a.name.toLowerCase().includes(q) ||
+        a.pids.some(p=>p.name.toLowerCase().includes(q)||(p.rc||'').toLowerCase().includes(q));
+      return ms && mq;
+    });
+    if(!visAIDs.length) continue;
+
+    // city bar
+    const missPIDs = visAIDs.reduce((n,a)=>n+a.pids.filter(p=>p.status!=='exists').length,0);
+    html+=`<div class="rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+      <div class="city-bar px-4 py-2 flex items-center gap-2">
+        <span class="font-bold text-sm">📍 ${city.city}</span>
+        <span class="ml-auto text-xs text-slate-400">${visAIDs.length} AID${visAIDs.length!==1?'s':''}</span>
+        ${missPIDs?`<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500 text-white">${missPIDs} missing</span>`:''}
+      </div>`;
+
+    for(let ai=0;ai<visAIDs.length;ai++){
+      const a=visAIDs[ai];
+      const aidKey=city.city+city.aids.indexOf(a);
+      const isOpen=openAIDs.has(aidKey);
+      const missPID=a.pids.filter(p=>p.status!=='exists').length;
+      const lastAID=ai===visAIDs.length-1;
+
+      html+=`<div class="aid-border-${a.status} ${lastAID&&!isOpen?'':'border-b border-gray-100'}">
+        <div class="aid-row flex items-center gap-2 px-3 py-2" onclick="toggleAID('${aidKey}')">
+          <span class="text-gray-300 w-3 text-center text-xs">${isOpen?'▾':'▸'}</span>
+          <span class="text-sm">🎢</span>
+          <span class="font-medium text-gray-900 flex-1 min-w-0">
+            ${a.aid?`<a href="${KLOOK}${a.aid}/" target="_blank" class="klk" onclick="event.stopPropagation()">${a.aid}</a> – `:''}${a.name}
+          </span>
+          <span class="text-xs text-gray-400 hidden md:block">${a.merchant}</span>
+          ${b(a.status)}
+          ${missPID?`<span class="px-1.5 py-0.5 rounded text-xs font-semibold bm">${missPID} pkg missing</span>`:''}
+          <span class="text-xs text-gray-300">${a.pids.length}p</span>
+        </div>`;
+
+      if(isOpen) {
+        html+=`<div class="border-t border-gray-100">
+          <table class="w-full text-xs pid-table">
+            <thead><tr class="bg-gray-50 text-gray-500">
+              <th class="text-left pl-8 pr-2 py-1.5 font-medium w-5">Status</th>
+              <th class="text-left px-2 py-1.5 font-medium">Package Name</th>
+              <th class="text-left px-2 py-1.5 font-medium hidden md:table-cell">Type</th>
+              <th class="text-left px-2 py-1.5 font-medium hidden md:table-cell">VW Rate Code</th>
+              <th class="text-left px-2 py-1.5 font-medium hidden lg:table-cell">Discount</th>
+              <th class="text-left px-2 py-1.5 font-medium">My Action</th>
+              <th class="text-left px-2 py-1.5 font-medium w-6"></th>
+            </tr></thead>
+            <tbody>`;
+
+        for(let pi=0;pi<a.pids.length;pi++){
+          const p=a.pids[pi];
+          const pidKey=aidKey+pi;
+          const isPidOpen=openPIDs.has(pidKey);
+
+          const myVal = getMyAction(pidKey);
+          html+=`<tr class="border-t border-gray-50 cursor-pointer" onclick="togglePID('${pidKey}')">
+            <td class="pl-8 pr-2 py-1.5">${pidIcon(p.status)}</td>
+            <td class="px-2 py-1.5 font-medium text-gray-800">${p.name}
+              ${p.note?`<span class="ml-1 text-gray-400 font-normal hidden lg:inline">— ${p.note}</span>`:''}
+            </td>
+            <td class="px-2 py-1.5 text-gray-500 hidden md:table-cell">
+              <span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded">${p.type}</span>
+            </td>
+            <td class="px-2 py-1.5 font-mono text-gray-400 hidden md:table-cell">${p.rc}</td>
+            <td class="px-2 py-1.5 text-gray-500 hidden lg:table-cell">${p.disc!=='-'?p.disc:'–'}</td>
+            <td class="px-2 py-1.5" onclick="event.stopPropagation()">
+              <select class="my-sel" data-v="${myVal}" onchange="setMyAction('${pidKey}',this)">
+                <option value="" ${myVal===''?'selected':''}>—</option>
+                <option value="onboarding" ${myVal==='onboarding'?'selected':''}>🔄 Onboarding</option>
+                <option value="solved"     ${myVal==='solved'?'selected':''}>✅ Solved</option>
+                <option value="skip"       ${myVal==='skip'?'selected':''}>⏭ Skip</option>
+              </select>
+            </td>
+            <td class="px-2 py-1.5 text-gray-300 text-center">${isPidOpen?'▾':'▸'}</td>
+          </tr>`;
+
+          if(isPidOpen){
+            html+=`<tr class="bg-slate-50"><td colspan="7" class="pl-14 pr-4 py-2">
+              ${p.note?`<div class="text-xs text-amber-700 mb-1.5">ℹ️ ${p.note}</div>`:''}
+              <div class="text-xs text-gray-400 mb-1 font-medium">SKUs</div>
+              <div>${p.skus.map(s=>`<span class="sku-chip">🎫 ${s}</span>`).join('')}</div>
+            </td></tr>`;
+          }
+        }
+
+        html+=`</tbody></table></div>`;
+      }
+      html+=`</div>`;
+    }
+    html+=`</div>`;
+  }
+
+  document.getElementById('tree').innerHTML = html||'<div class="text-center text-gray-400 py-10 text-sm">No results.</div>';
+}
+
+// ── EXPORT ───────────────────────────────────────────────────────────────────
+
+function exportCSV() {
+  const myData = loadMyActions();
+  const rows=[['City','AID','AID Name','AID Status','VW Rate Code','Package Name','Type','Discount','PID Status','My Action','SKUs','Note']];
+  CITIES.forEach(c=>c.aids.forEach((a,ai)=>a.pids.forEach((p,pi)=>{
+    const aidKey=c.city+c.aids.indexOf(a);
+    const pidKey=aidKey+pi;
+    rows.push([c.city,a.aid||'',a.name,a.status,p.rc,p.name,p.type,p.disc,p.status,myData[pidKey]||'',p.skus.join(' | '),p.note||'']);
+  })));
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const el=document.createElement('a');
+  el.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  el.download='vinwonders_klook_'+new Date().toISOString().slice(0,10)+'.csv';
+  el.click();
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+
+document.getElementById('ts').textContent=new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+renderKPIs(); renderFilters(); render();
+</script>
+</body>
+</html>
